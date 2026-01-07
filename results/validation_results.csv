@@ -1,0 +1,5 @@
+timestamp,model,order_p,order_d,order_q,label_train,label_val,mae,mse,rmse
+2026-01-06T11:03:02,arima_monthly_rolling,0,1,0,Train,Validation (Actual),121.58333333333331,26444.08333333333,162.6163685897989
+2026-01-06T11:03:03,arima_monthly_rolling,1,1,0,Train,Validation (Actual),152.80903669317794,36262.45606440334,190.42703606474407
+2026-01-06T11:03:03,arima_monthly_rolling,0,1,1,Train,Validation (Actual),143.0133037116715,33143.48078813164,182.0535107822193
+2026-01-06T11:03:05,arima_monthly_rolling,1,1,1,Train,Validation (Actual),137.1939637913073,34499.932290342535,185.7415739417068
