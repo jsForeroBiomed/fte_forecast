@@ -46,6 +46,10 @@ DATA_FREQUENCY_LABEL = "Monthly"
 TRAIN_RESULTS_PATH = "results/train_results.csv"
 VAL_RESULTS_PATH = "results/validation_results.csv"
 
+FTE_TARGET = "Less than 3300 FTE"
+FTE_TARGET_VALUE = 3300
+
+
 
 train_df = pd.read_csv(TRAIN_DATA_PATH)
 val_df = pd.read_csv(VAL_DATA_PATH)
@@ -180,11 +184,13 @@ app_ui = ui.page_fluid(
             "Overview",
             ui.layout_columns(
                 ui.card(
-                    ui.h4("KPIs"),
-                    ui.p(f"Last available date: {last_date.date()}"),
-                    ui.p(f"Last observed FTE: {last_value:,.0f}"),
-                    ui.p(f"Data frequency: {DATA_FREQUENCY_LABEL}"),
-                    ui.p(f"Final model: {FINAL_MODEL_LABEL}")
+                    ui.h4("General information"),
+                    ui.tags.p(f"KPI: {FTE_TARGET}", style="font-weight: bold;"),
+                    ui.tags.p(f"Last available date: {last_date.date()}", style="font-size: 0.85em;"),
+                    ui.tags.p(f"Last observed FTE: {last_value:,.0f}", style="font-size: 0.85em;"),
+                    ui.tags.p(f"Data frequency: {DATA_FREQUENCY_LABEL}", style="font-size: 0.85em;"),
+                    ui.tags.p(f"Final model: {FINAL_MODEL_LABEL}", style="font-size: 0.85em;")
+                    
                 ),
                 ui.card(
                     ui.h4("Historical FTE"),
@@ -194,43 +200,7 @@ app_ui = ui.page_fluid(
             )
         ),
 
-        ui.nav_panel(
-            "Model comparison",
-            ui.layout_columns(
-                ui.card(
-                    ui.h4("Train vs Validation metrics"),
-                    ui.output_table("comparison_table")
-                ),
-                ui.card(
-                    ui.h4("RMSE by model"),
-                    ui.output_plot("rmse_bar_plot", height="350px")
-                ),
-                col_widths=[6, 6]
-            )
-        ),
-
-        ui.nav_panel(
-            "Backtesting",
-            ui.layout_sidebar(
-                ui.sidebar(
-                    ui.input_radio_buttons(
-                        "bt_dataset",
-                        "Dataset",
-                        choices={"validation": "Validation", "test": "Test"},
-                        selected="validation"
-                    )
-                ),
-                ui.card(
-                    ui.h4("Rolling backtest"),
-                    ui.output_plot("backtest_plot", height="380px")
-                ),
-                ui.card(
-                    ui.h4("Backtest metrics"),
-                    ui.output_table("backtest_metrics_table")
-                )
-            )
-        ),
-
+        
         ui.nav_panel(
             "Forecast",
             ui.layout_sidebar(
@@ -246,17 +216,58 @@ app_ui = ui.page_fluid(
                         "Confidence level",
                         choices={"0.8": "80%", "0.95": "95%"},
                         selected="0.95"
-                    )
+                    ),
+                    ui.output_ui("forecast_range_summary")
                 ),
                 ui.card(
                     ui.h4("Forecast with uncertainty"),
                     ui.output_plot("forecast_plot", height="400px")
+                )
+            )
+        ),
+        
+        ui.nav_panel(
+            "Model comparison",
+            ui.layout_columns(
+                ui.card(
+                    ui.h4("Train vs Validation metrics"),
+                    ui.output_table("comparison_table"),
+                    ui.tags.p("RMSE quantifies forecast accuracy for FTE planning; lower values indicate better alignment with actual workforce needs.", style="font-size: 0.85em;"),
                 ),
                 ui.card(
-                    ui.output_text("forecast_range_summary")
+                    ui.h4("RMSE by model"),
+                    ui.output_plot("rmse_bar_plot", height="350px")
+                ),
+                col_widths=[5, 7]
+            )
+        ),
+
+        ui.nav_panel(
+            "Backtesting",
+            ui.layout_sidebar(
+                ui.sidebar(
+                    ui.h4("Backtest metrics"),
+                    ui.input_radio_buttons(
+                        "bt_dataset",
+                        "Dataset",
+                        choices={"validation": "Validation", "test": "Test"},
+                        selected="validation"
+                    ),
+                    
+                    ui.output_table("backtest_metrics_table"),
+                    ui. tags.p("Validation: Model selection phase.", style="font-size: 0.75em;"),
+
+                    ui. tags.p("Test: Final performance confirmation.", style="font-size: 0.75em;"),
+                    
+                ),
+                ui.card(
+                    ui.h4("Rolling backtest: ARIMA(0, 1, 0)"),
+                    ui.output_plot("backtest_plot", height="380px")
                 )
             )
         )
+
+        
     )
 )
 
@@ -284,6 +295,14 @@ def server(input, output, session):
             linewidth=1.5,
             color=GRAY,
             label="Train / Validation split"
+        )
+
+        ax.axhline(
+            FTE_TARGET_VALUE,
+            linestyle="--",
+            linewidth=1.5,
+            color=LIGHT_PURPLE,
+            label=f"Target ({FTE_TARGET_VALUE:,.0f} FTE)"
         )
 
         if len(test_df) > 0:
@@ -323,12 +342,15 @@ def server(input, output, session):
     def rmse_bar_plot():
         fig, ax = plt.subplots(figsize=(8, 4))
         x = np.arange(len(model_comparison))
-        ax.bar(x, model_comparison["RMSE train"], color=LIGHT_PURPLE, label="Train")
-        ax.bar(x, model_comparison["RMSE validation"], bottom=model_comparison["RMSE train"],
-               color=PURPLE, label="Validation")
+        width = 0.35
+        
+        ax.bar(x - width/2, model_comparison["RMSE train"], width, color=LIGHT_PURPLE, label="Train")
+        ax.bar(x + width/2, model_comparison["RMSE validation"], width, color=PURPLE, label="Validation")
         ax.set_xticks(x)
         ax.set_xticklabels(model_comparison["Model"], rotation=45)
+        ax.set_ylabel("RMSE")
         ax.legend()
+        ax.grid(True, axis='y', alpha=0.3)
         
         return fig
 
@@ -354,14 +376,14 @@ def server(input, output, session):
         
         if len(filtered) == 0:
             # Retornar DataFrame vacío con las columnas correctas si no hay datos
-            return pd.DataFrame(columns=["model", "RMSE", "MAE"])
+            return pd.DataFrame(columns=["RMSE", "MAE"])
         
-        result = filtered[["model", "RMSE", "MAE"]].copy()
+        # Tomar solo la primera fila (modelo final) y seleccionar solo métricas
+        result = filtered.iloc[[0]][["RMSE", "MAE"]].copy()
         # Asegurar que los valores numéricos están bien formateados
         result["RMSE"] = pd.to_numeric(result["RMSE"], errors="coerce").round(1)
         result["MAE"] = pd.to_numeric(result["MAE"], errors="coerce").round(1)
-        # Reemplazar NaN con 0 y asegurar que model sea string
-        result["model"] = result["model"].astype(str)
+        # Reemplazar NaN con 0
         result = result.fillna(0)
         return result
 
@@ -426,6 +448,14 @@ def server(input, output, session):
             color=GRAY
         )
 
+        ax.axhline(
+            FTE_TARGET_VALUE,
+            linestyle="--",
+            linewidth=1.5,
+            color=LIGHT_PURPLE,
+            label=f"Target ({FTE_TARGET_VALUE:,.0f} FTE)"
+        )
+
         ax.set_title("FTE forecast")
         ax.set_xlabel("Date")
         ax.set_ylabel("Total FTE")
@@ -436,16 +466,23 @@ def server(input, output, session):
 
 
     @output
-    @render.text
+    @render.ui
     def forecast_range_summary():
         horizon = int(input.fc_horizon())
         ci = float(input.fc_ci())
         model = ARIMA(df["Total_FTE"], order=(0,1,0)).fit()
         res = model.get_forecast(horizon)
         ci_df = res.conf_int(alpha=1-ci)
-        return (
-            f"{int(ci*100)}% interval at {horizon} months:\n"
-            f"{ci_df.iloc[-1,0]:,.0f} – {ci_df.iloc[-1,1]:,.0f} FTE"
+        mean = res.predicted_mean
+        
+        lower_bound = ci_df.iloc[-1, 0]
+        point_estimate = mean.iloc[-1]
+        upper_bound = ci_df.iloc[-1, 1]
+        
+        return ui.TagList(
+            ui.tags.p(ui.tags.strong("Upper bound: "), f"{upper_bound:,.0f} FTE"),
+            ui.tags.p(ui.tags.strong("Point estimate: "), f"{point_estimate:,.0f} FTE"),
+            ui.tags.p(ui.tags.strong("Lower Bound: "), f"{lower_bound:,.0f} FTE")
         )
 
 app = App(app_ui, server)
