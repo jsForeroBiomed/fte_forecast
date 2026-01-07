@@ -1,0 +1,70 @@
+# Entornos virtuales
+venv/
+.venv/
+env/
+.env/
+ENV/
+env.bak/
+venv.bak/
+
+# Configuración/env vars sensibles
+.env
+*.env
+*.env.*
+
+# Datos (no subir datasets ni derivados pesados)
+data/
+data/*/
+data/*.csv
+data/*.parquet
+data/*.feather
+data/*.xlsx
+data/*.xls
+data/*.json
+data/*.pickle
+data/*.pkl
+data/*.npz
+data/*.npy
+
+# Resultados, modelos y artefactos
+results/
+results/*/
+models/
+models/*/
+checkpoints/
+checkpoints/*/
+outputs/
+outputs/*/
+logs/
+*.log
+
+# Cachés y compilados de Python
+__pycache__/
+*.py[cod]
+*$py.class
+.mypy_cache/
+.pytest_cache/
+.cache/
+
+# Notebooks: checkpoints y salidas pesadas
+.ipynb_checkpoints/
+*.nbconvert.ipynb
+
+# Archivos temporales de editores/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Cobertura y testing
+.coverage
+.coverage.*
+htmlcov/
+dist/
+build/
+
